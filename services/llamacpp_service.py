@@ -115,8 +115,8 @@ class LlamaCPPService:
             # Preprocess image for faster processing
             processed_image_path = self.preprocess_image(image_path)
             
-            # Prepare the prompt - more specific for faster processing
-            prompt = "Extract ONLY the Indian license plate number. Return just the plate number in format XX00XX0000. If none found, return 'NOT_FOUND'."
+            # SmolVLM2-specific prompt format: <|im_start|> User: {message}<image> Assistant:
+            prompt = "<|im_start|> User: Read the Indian license plate number from this image and return it in uppercase without any extra text.<image> Assistant:"
             
             # Build command with optimizations (removed --model-cache as it's not supported)
             cmd = [
@@ -139,7 +139,7 @@ class LlamaCPPService:
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=30  # Reduced timeout
+                timeout=120  # Increased timeout for SmolVLM2
             )
             
             # Clean up processed image
@@ -165,7 +165,7 @@ class LlamaCPPService:
                 return None
                 
         except subprocess.TimeoutExpired:
-            logger.error("LlamaCPP timeout (>30s)")
+            logger.error("LlamaCPP timeout (>120s)")
             return None
         except Exception as e:
             logger.error(f"LlamaCPP exception: {e}")

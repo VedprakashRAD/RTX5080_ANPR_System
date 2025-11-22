@@ -16,6 +16,7 @@ load_dotenv()
 # Import our modules
 from services.yolo_plate_detector import YOLOPlateDetector
 from services.license_plate_service import LicensePlateService
+from services.llama_server_service import LlamaServerService
 from services.vehicle_detector import VehicleDetector
 from services.image_enhancer import ImageEnhancer
 from services.mongodb_sync import MongoDBSync
@@ -83,7 +84,8 @@ class GlobalState:
         self.vehicle_detector = VehicleDetector(confidence_threshold=0.4)
         self.yolo_detector = YOLOPlateDetector(model_path="yolov8_license_plate2 (2).pt", confidence_threshold=0.3)
         self.image_enhancer = ImageEnhancer()
-        self.license_plate_service = LicensePlateService()
+        # self.license_plate_service = LicensePlateService()
+        self.license_plate_service = LlamaServerService() # Use Persistent Server Strategy
         self.mongodb_sync = MongoDBSync()
         self.temp_cleanup = TempFileCleanup(temp_dir="temp_screenshots", max_age_hours=1)
         print("✅ Detectors initialized (CPU-optimized)")
@@ -134,19 +136,13 @@ def crop_roi(frame):
 def call_api_with_retry(image_bytes):
     """Call license plate API directly without HTTP request"""
     try:
-        from services.license_plate_service import LicensePlateService
-        license_plate_service = LicensePlateService()
-        result = license_plate_service.extract_license_plate_from_bytes(image_bytes)
+        # Use Persistent LlamaServer (SmolVLM2)
+        from services.llama_server_service import LlamaServerService
+        ocr_service = LlamaServerService()
+        result = ocr_service.extract_license_plate(image_bytes)
         
-        if isinstance(result, dict):
-            plate = result.get('plate', '')
-        elif isinstance(result, str):
-            plate = result
-        else:
-            plate = str(result) if result else ''
-        
-        if plate and plate not in ['NOT_FOUND', 'ERROR_PROCESSING', 'PROCESSING_ERROR']:
-            return {'success': True, 'registrationNo': plate}
+        if result:
+            return {'success': True, 'registrationNo': result}
         return None
     except Exception as e:
         print(f"Direct API call failed: {e}")
