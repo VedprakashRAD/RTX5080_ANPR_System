@@ -116,11 +116,16 @@ class LlamaServerService:
         # SmolVLM2 Prompt Format
         prompt = "<|im_start|> User: Read the Indian license plate number from this image and return it in uppercase without any extra text.<image> Assistant:"
         
+        # Generate unique ID for image to prevent caching collisions
+        import hashlib
+        image_id = int(hashlib.md5(image_data.encode()).hexdigest(), 16) % 100000
+        
         payload = {
             "prompt": prompt,
-            "image_data": [{"data": image_data, "id": 10}],
+            "image_data": [{"data": image_data, "id": image_id}],
             "temperature": 0.1,
             "n_predict": 16,
+            "cache_prompt": False,  # Force new inference
             "stop": ["<|im_end|>"]
         }
         
@@ -146,3 +151,14 @@ class LlamaServerService:
             if "Connection refused" in str(e):
                 self._ensure_server_running()
             return None
+
+    def shutdown(self):
+        """Stop the LlamaServer process"""
+        if self.server_process:
+            logger.info("Stopping LlamaServer...")
+            self.server_process.terminate()
+            try:
+                self.server_process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                self.server_process.kill()
+            logger.info("LlamaServer stopped")

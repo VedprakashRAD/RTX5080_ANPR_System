@@ -908,8 +908,14 @@ def start_headless_service():
         print(f"❌ Failed to start headless service: {e}")
 
 def stop_headless_service():
-    """Stop headless service on exit"""
-    print("👋 No headless service to stop in this system")
+    """Stop services on exit"""
+    print("👋 Stopping services...")
+    
+    # Stop LlamaServer if running
+    if state.license_plate_service and hasattr(state.license_plate_service, 'shutdown'):
+        state.license_plate_service.shutdown()
+        
+    print("✅ Services stopped")
 
 def signal_handler(sig, frame):
     """Handle Ctrl+C gracefully"""
