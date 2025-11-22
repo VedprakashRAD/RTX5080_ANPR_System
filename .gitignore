@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+venv/
+env/
+ENV/
+
+# Models and weights
+*.pt
+*.pth
+*.onnx
+*.gguf
+*.bin
+*.hef
+*.hailo
+models/
+llama.cpp/
+
+# Data and temporary files
+*.jpg
+*.jpeg
+*.png
+*.mp4
+*.avi
+temp/
+uploads/
+static/uploads/
+test_plate.jpg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env.local
+.env.*.local
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
