@@ -52,13 +52,15 @@ class LlamaServerService:
         cmd = [
             self.server_path,
             "-m", self.model_path,
-            "--mmproj", self.mmproj_path,
             "--port", str(self.port),
             "--host", self.host,
             "-c", "2048",  # Context size
             "--n-gpu-layers", "0", # CPU only
             "-t", "4"      # Threads
         ]
+        
+        if self.mmproj_path:
+             cmd.extend(["--mmproj", self.mmproj_path])
         
         try:
             # Start server in background
