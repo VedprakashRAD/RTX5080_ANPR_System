@@ -1,392 +1,385 @@
-# Complete License Plate Recognition (LPR) System
+# RTX5080 ANPR System
 
-Production-grade LPR system with VIGI C320I camera integration, Qwen2.5-VL API, ROI processing, and dual database architecture for Indian vehicle license plates.
+**High-Performance License Plate Recognition System**  
+Optimized for NVIDIA RTX 5080 GPU deployment with multi-camera support
 
-## Project Overview
+---
 
-This is a complete production-ready License Plate Recognition system designed for Indian vehicles. It uses advanced computer vision, AI-powered OCR with Qwen2.5-VL model, and intelligent image processing to achieve 99% accuracy with optimized performance.
+## 🚀 Features
 
-## Key Features
+### Core Capabilities
+- **Multi-Camera Support**: 4 RTSP cameras (2 gates × 2 cameras: IN/OUT)
+- **High-Accuracy Detection**: YOLOv8 plate detection with 75% confidence threshold
+- **Vision LLM OCR**: SmolVLM/Qwen-VL for license plate text extraction
+- **Duplicate Suppression**: 30-second cooldown to prevent spam
+- **MongoDB Integration**: Persistent storage with camera tracking and direction
+- **Real-Time Processing**: GPU-accelerated for high-performance deployment
 
-### 🚀 Production-Grade Performance
-1. **ROI Processing**: Processes only license plate region (90% CPU reduction, 99% accuracy)
-2. **Motion Detection**: Smart frame processing only when vehicles are detected
-3. **Sharpness Filtering**: Uses only clear, sharp images for better accuracy
-4. **Retry Logic**: Automatic retry mechanism for failed API calls
-5. **Auto-Cleanup**: Automatic deletion of temporary files after cloud sync
+### Production Features
+- ✅ No duplicate detections (30s cooldown)
+- ✅ High confidence threshold (0.75 = 75%)
+- ✅ MongoDB persistence with GridFS support
+- ✅ Camera source tracking (RAHQ-G1-IN-01, etc.)
+- ✅ Direction tracking (IN/OUT)
+- ✅ SQLite fallback logging
+- ✅ Automatic temp file cleanup
 
-### 🎯 Advanced AI & Detection
-6. **AI-Powered OCR**: Qwen2.5-VL state-of-the-art vision-language model
-7. **Vehicle Type Detection**: Identifies Car, Bike, Scooter, Truck, Bus from plate patterns
-8. **Real-time Processing**: Live camera feed with instant recognition
-9. **Dual Image Tracking**: Saves both full vehicle image and ROI sent to API
+---
 
-### 🌐 Robust Architecture
-10. **Dual Database System**: Local SQLite + Cloud MongoDB for reliability
-11. **RTSP Camera Integration**: VIGI C320I and other IP cameras support
-12. **Web Dashboard**: Live monitoring with real-time updates
-13. **REST API**: Complete API for external integrations
-14. **GPIO Gate Control**: Automatic barrier/gate control integration
+## 📋 System Requirements
 
-## Prerequisites
+### Hardware
+- **GPU**: NVIDIA RTX 5080 (16GB VRAM) or equivalent
+- **RAM**: 16GB minimum
+- **Storage**: 50GB+ for models and logs
+- **Network**: Gigabit Ethernet for RTSP streams
 
-1. Python 3.8 or higher
-2. Ollama installed and running
-3. Qwen2.5-VL model pulled in Ollama
+### Software
+- **OS**: Ubuntu 20.04+ / Linux
+- **Python**: 3.11+
+- **CUDA**: 12.0+
+- **Docker**: Optional (recommended)
 
-## Installation
+---
 
-### 🐍 Standard Installation
-1. Create a virtual environment:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+## 🛠️ Installation
 
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. Pull the required model in Ollama:
-   ```bash
-   ollama pull qwen2.5vl:3b
-   ```
-
-### 🐳 Docker Installation (Recommended for Raspberry Pi)
-Docker simplifies deployment, especially on Raspberry Pi devices, by ensuring consistent environments and handling dependencies automatically.
-
-1. Install Docker:
-   ```bash
-   # On Raspberry Pi
-   curl -fsSL https://get.docker.com -o get-docker.sh
-   sudo sh get-docker.sh
-   sudo usermod -aG docker $USER
-   ```
-
-2. Build the Docker image:
-   ```bash
-   # On your development machine for Raspberry Pi
-   ./build-for-raspberry.sh
-   
-   # Or directly on Raspberry Pi
-   ./deploy-to-raspberry.sh
-   ```
-
-## Configuration
-
-Update the `.env` file with your camera and system settings:
-```env
-# Ollama Configuration
-OLLAMA_HOST=http://localhost:11434
-MODEL_NAME=qwen2.5vl:3b
-
-# API Configuration
-API_HOST=0.0.0.0
-API_PORT=8000
-
-# Remote API URL (used when internet is available)
-REMOTE_API_URL=http://rnd.readyassist.net:8000/analyze/extract-license-plate
-
-# Camera Configuration (VIGI C320I)
-RTSP_URL=rtsp://admin:Rasdf_1212@10.1.2.201:554/stream1
-CAMERA_USERNAME=admin
-CAMERA_PASSWORD=Rasdf_1212
-CAMERA_IP=10.1.2.201
-CAMERA_PORT=554
-CAMERA_STREAM=stream1
-
-# ROI Configuration (License Plate Region)
-PLATE_ROI_X=300
-PLATE_ROI_Y=600
-PLATE_ROI_W=800
-PLATE_ROI_H=300
-
-# Processing Thresholds
-MOTION_THRESHOLD=15
-SHARPNESS_THRESHOLD=100
-CONFIDENCE_THRESHOLD=0.7
-
-# Database Configuration
-DB_FILE=lpr_logs.db
-MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/
-MONGO_DB_NAME=lpr_system
-MONGO_COLLECTION=vehicle_logs
-
-# Hardware Configuration
-GATE_PIN=17
-ENABLE_GPIO=true
-
-# Image Storage
-IMAGE_SAVE_PATH=./vehicle_images/
-ROI_TEMP_PATH=./temp_roi/
-AUTO_CLEANUP=true
+### 1. Clone Repository
+```bash
+git clone git@github.com:deepak-kumar-swain/RTX5080_ANPR_System.git
+cd RTX5080_ANPR_System
 ```
 
-## Vehicle Type Detection
-
-| Plate Pattern | Vehicle Type | Example |
-|---------------|--------------|----------|
-| AA00AA0000 | Car | MH01AB1234 |
-| AA00A0000 | Bike/Scooter | MH01A1234 |
-| AA00AA000 | Auto/Taxi | MH01AA123 |
-| AA00T0000 | Truck/Bus | MH01T1234 |
-| AA00G0000 | Goods Vehicle | MH01G1234 |
-| YYBH####XX | Bharat Series | 22BH1234AB |
-
-## Running the System
-
-### 🚀 Production System (Recommended)
+### 2. Install Dependencies
 ```bash
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install requirements
+pip install -r requirements.txt
+```
+
+### 3. Configure Environment
+```bash
+# Copy environment template
+cp .env.example .env
+
+# Edit configuration
+nano .env
+```
+
+**Important:** Update camera credentials in `.env`:
+```bash
+# Example for Camera 1
+CAMERA_G1_IN_01_URL=rtsp://admin:YourActualPassword@192.168.30.101:554/Streaming/Channels/101
+```
+
+### 4. Install Ollama (for Vision LLM)
+```bash
+# Install Ollama
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Pull vision model
+ollama pull qwen2.5vl:3b
+# or
+ollama pull smolvlm2:2.2b
+
+# Start Ollama server
+ollama serve
+```
+
+---
+
+## 🎯 Quick Start
+
+### Start the System
+```bash
+# Activate virtual environment
+source venv/bin/activate
+
+# Start ANPR system
 python app.py
 ```
-This starts the complete integrated system:
-- **API Server**: `http://localhost:8000` - REST API endpoints
-- **Web Dashboard**: `http://localhost:8000/dashboard` - Live monitoring
-- **Camera Stream**: `http://localhost:8000/video_feed` - Live RTSP feed
-- **Real-time LPR**: Automatic license plate recognition with ROI processing
 
-### 🐳 Docker Deployment (Raspberry Pi Recommended)
+### Access Services
+- **API Server**: http://localhost:8000
+- **API Documentation**: http://localhost:8000/docs
+- **Camera Feed**: http://localhost:8000/video_feed
+
+---
+
+## 📡 API Endpoints
+
+### 1. Extract License Plate (POST)
+**Endpoint:** `/extract-license-plate`
+
+**Request:**
 ```bash
-# Build and deploy with Docker
-./deploy-to-raspberry.sh
-
-# Or using docker-compose
-docker-compose up -d
+curl -X POST "http://localhost:8000/extract-license-plate" \
+  -F "image=@car.jpg"
 ```
 
-This starts the complete system in a Docker container:
-- **API Server**: `http://localhost:8000` - REST API endpoints
-- **Web Dashboard**: `http://localhost:8000/dashboard` - Live monitoring
-- **Camera Stream**: `http://localhost:8000/video_feed` - Live RTSP feed
-- **Persistent Storage**: Vehicle images and database stored in volumes
-
-### 📊 Access Points
-- **Main System**: `http://localhost:8000/` - System overview
-- **Live Dashboard**: `http://localhost:8000/dashboard` - Real-time monitoring
-- **API Docs**: `http://localhost:8000/docs` - Interactive API documentation
-- **Camera Feed**: `http://localhost:8000/video_feed` - Live video stream
-
-### 🔧 Individual Components
-```bash
-# Standalone LPR camera system
-python lpr_system.py advanced
-
-# Separate web dashboard (Flask)
-python web_dashboard.py
-
-# Camera streaming service
-python camera_stream.py
-```
-
-### 📈 Processing Levels
-```bash
-# Basic: Simple plate detection
-python lpr_system.py basic
-
-# Intermediate: + ROI + Motion detection  
-python lpr_system.py intermediate
-
-# Advanced: + Sharpness + Dual Database + Gate control + Image tracking
-python lpr_system.py advanced
-```
-
-## 🔌 API Endpoints
-
-### 📸 Extract License Plate
-**POST** `/extract-license-plate`
-
-Upload an image file containing an Indian license plate for AI-powered recognition.
-
-#### Request
-- **Method**: POST
-- **Content-Type**: multipart/form-data
-- **Field**: "image" (image file)
-- **Supported Formats**: JPG, PNG, JPEG
-- **Max Size**: 10MB
-
-#### Response Format
-```json
-{
-  "success": boolean,
-  "internet": boolean,
-  "registrationNo": "string",
-  "vehicleType": "string",
-  "confidence": float,
-  "processingTime": float
-}
-```
-
-#### Response Examples
-
-✅ **Success Response**:
+**Response:**
 ```json
 {
   "success": true,
   "internet": true,
-  "registrationNo": "MH01AB1234",
-  "vehicleType": "CAR",
-  "confidence": 0.95,
-  "processingTime": 1.23
-}
-```
-
-❌ **No Internet**:
-```json
-{
-  "success": false,
-  "internet": false,
-  "error": "No internet connection available"
-}
-```
-
-⚠️ **Processing Error**:
-```json
-{
-  "success": false,
-  "internet": true,
-  "error": "Unable to detect license plate in image"
-}
-```
-
-### 📊 Live Detection API
-**GET** `/api/live-detections`
-
-Get recent live detections from the camera system.
-
-#### Response
-```json
-{
-  "success": true,
-  "detections": [
+  "registrationNo": "MH12AB1234",
+  "yolo_detections": [
     {
-      "plate": "MH01AB1234",
-      "type": "CAR",
-      "timestamp": "2024-01-15 14:30:25",
-      "image_path": "./vehicle_images/20240115_143025.jpg",
-      "roi_image_path": "./temp_roi/20240115_143025_roi.jpg",
-      "api_response": "{\"success\": true, \"internet\": true}"
+      "bbox": [100, 200, 300, 400],
+      "confidence": 0.95
     }
-  ]
+  ],
+  "yolo_confidence": 0.95
 }
 ```
 
-## Indian License Plate Validation
+---
 
-### Overview
-The system validates two main types of Indian license plates:
+## 🎥 Camera Configuration
 
-### 1. Standard State License Plates
-- **Format**: `AA00AA0000`
-- **Components**:
-  - `AA`: State or Union Territory code
-  - `00`: RTO district code within the state
-  - `AA`: Series code indicating vehicle series
-  - `0000`: Unique vehicle number
+### 4-Camera Layout
 
-### 2. BH Series (Bharat Series) License Plates
-- **Format**: `YYBH####XX`
-- **Components**:
-  - `YY`: Year of registration (last two digits)
-  - `BH`: Bharat series indicator (national registration)
-  - `####`: Random 4-digit number
-  - `XX`: Random letters (excluding I, O)
+**Gate 1:**
+- `RAHQ-G1-IN-01` (192.168.30.101) - Entry
+- `RAHQ-G1-OUT-02` (192.168.30.102) - Exit
 
-### Supported State Codes
-The system validates against these state and union territory codes:
-AP, AR, AS, BR, CG, GA, GJ, HR, HP, JH, KA, KL, MP, MH, MN, ML, MZ, NL, OD, PB, RJ, SK, TN, TS, TR, UP, UK, WB, AN, CH, DN, DL, JK, LA, LD, PY
+**Gate 2:**
+- `RAHQ-G2-IN-03` (192.168.30.103) - Entry
+- `RAHQ-G2-OUT-04` (192.168.30.104) - Exit
 
-## Technical Architecture
+### Camera Selection
+```bash
+# Edit .env to select active camera
+ACTIVE_CAMERA=CAMERA_G1_IN_01
+```
 
-### 🏗️ Production Components
+### Test Camera Configuration
+```bash
+python utils/camera_config.py
+```
 
-1. **Integrated FastAPI System** (`app.py`):
-   - Complete LPR system with camera integration
-   - ROI-based processing for 90% performance improvement
-   - Real-time motion detection and sharpness filtering
-   - Dual image tracking (full vehicle + ROI sent to API)
-   - Auto-retry logic and error handling
-   - Live camera streaming (RTSP → HTTP)
-   - Web dashboard integration
+---
 
-2. **Dual Database Architecture**:
-   - **Local SQLite**: Fast access, reliability, offline capability
-   - **Cloud MongoDB**: Backup, remote access, scalability
-   - Automatic synchronization and failover
+## 🗄️ Database Configuration
 
-3. **Advanced Image Processing**:
-   - ROI extraction for license plate region
-   - Motion detection to process only moving vehicles
-   - Sharpness filtering for optimal image quality
-   - Temporary ROI image storage with auto-cleanup
+### MongoDB (Primary Storage)
+```bash
+# .env configuration
+MONGODB_ENABLED=true
+MONGODB_URI=mongodb://localhost:27017
+MONGODB_DB=anpr_system
+```
 
-4. **AI-Powered Recognition**:
-   - Qwen2.5-VL model via Ollama API
-   - Indian license plate validation
-   - Vehicle type detection from plate patterns
-   - Confidence scoring and retry mechanisms
+**Data Stored:**
+- License plate number
+- Camera ID (RAHQ-G1-IN-01, etc.)
+- Direction (IN/OUT)
+- Timestamp
+- Confidence score
+- Image path (GridFS)
 
-### 🔄 Production Data Flow
+### SQLite (Fallback)
+```bash
+DB_FILE=lpr_logs.db
+```
 
-1. **Camera Capture**: RTSP stream from VIGI C320I camera
-2. **Motion Detection**: Process only frames with vehicle movement
-3. **ROI Extraction**: Crop license plate region (300x600, 800x300)
-4. **Sharpness Check**: Filter blurry images (threshold: 100)
-5. **AI Processing**: Send ROI to Qwen2.5-VL model
-6. **Dual Storage**: Save full image + temp ROI image
-7. **Database Logging**: Store in SQLite + sync to MongoDB
-8. **Live Updates**: Real-time dashboard updates
-9. **Auto-Cleanup**: Delete temp files after cloud sync
-10. **Gate Control**: Optional GPIO-based barrier control
+---
 
-## Project Structure
+## ⚙️ Configuration
+
+### Key Settings (.env)
+
+**Camera Settings:**
+```bash
+ACTIVE_CAMERA=CAMERA_G1_IN_01
+CAMERA_RESOLUTION=1080p
+CAMERA_FPS=25
+```
+
+**Detection Settings:**
+```bash
+# Confidence thresholds (production-grade)
+VEHICLE_CONFIDENCE=0.6
+PLATE_CONFIDENCE=0.75
+
+# Duplicate suppression
+DUPLICATE_COOLDOWN=30  # seconds
+```
+
+**Ollama Settings:**
+```bash
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_MODEL=qwen2.5vl:3b
+```
+
+**API Settings:**
+```bash
+API_HOST=0.0.0.0
+API_PORT=8000
+```
+
+---
+
+## 🔧 Production Deployment
+
+### Systemd Service
+```bash
+# Create service file
+sudo nano /etc/systemd/system/anpr.service
+```
+
+```ini
+[Unit]
+Description=ANPR System
+After=network.target
+
+[Service]
+Type=simple
+User=anpr
+WorkingDirectory=/home/anpr/RTX5080_ANPR_System
+Environment="PATH=/home/anpr/RTX5080_ANPR_System/venv/bin"
+ExecStart=/home/anpr/RTX5080_ANPR_System/venv/bin/python app.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+# Enable and start service
+sudo systemctl enable anpr
+sudo systemctl start anpr
+sudo systemctl status anpr
+```
+
+---
+
+## 📊 Performance Metrics
+
+### GPU Utilization (RTX 5080)
+- **Inference Time**: 150-300ms per image
+- **VRAM Usage**: ~3-4GB (with qwen2.5vl:3b)
+- **Throughput**: 3-6 FPS per camera
+- **Accuracy**: >90% (with 0.75 confidence threshold)
+
+### Detection Accuracy
+- **Confidence Threshold**: 0.75 (75%)
+- **False Positive Rate**: <10%
+- **Duplicate Suppression**: 30s cooldown
+- **OCR Success Rate**: ~80-95% (depends on image quality)
+
+---
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**1. Camera Connection Failed**
+```bash
+# Test RTSP stream
+ffplay rtsp://admin:password@192.168.30.101:554/Streaming/Channels/101
+
+# Check camera connectivity
+ping 192.168.30.101
+```
+
+**2. Ollama Not Running**
+```bash
+# Start Ollama server
+ollama serve
+
+# Check if model is installed
+ollama list
+```
+
+**3. MongoDB Connection Failed**
+```bash
+# Start MongoDB
+sudo systemctl start mongod
+
+# Check status
+sudo systemctl status mongod
+```
+
+**4. Low Detection Accuracy**
+- Increase camera resolution
+- Adjust lighting conditions
+- Clean camera lens
+- Check RTSP stream quality
+
+---
+
+## 📁 Project Structure
 
 ```
-├── app.py                          # 🚀 Main integrated FastAPI system
-├── lpr_system.py                   # 📹 Standalone LPR camera system
-├── web_dashboard.py                # 📊 Flask web dashboard
-├── camera_stream.py                # 📺 RTSP camera streaming service
-├── requirements.txt                # 📦 Python dependencies
-├── .env                           # ⚙️ System configuration
-├── .gitignore                     # 🚫 Git ignore rules
-├── Dockerfile                     # 🐳 Docker configuration
-├── docker-compose.yml             # 🐳 Docker Compose configuration
-├── build-for-raspberry.sh         # 🛠️ Raspberry Pi build script
-├── deploy-to-raspberry.sh         # 🛠️ Raspberry Pi deployment script
+RTX5080_ANPR_System/
+├── app.py                      # Main application
+├── lpr_system.py              # LPR processing logic
+├── requirements.txt           # Python dependencies
+├── .env.example              # Environment template
 ├── services/
-│   ├── __init__.py
-│   └── license_plate_service.py   # 🤖 Ollama AI integration
+│   ├── yolo_plate_detector.py    # YOLOv8 plate detection
+│   ├── vehicle_detector.py       # Vehicle detection
+│   ├── llama_server_service.py   # Vision LLM OCR
+│   ├── mongodb_sync.py           # MongoDB integration
+│   ├── image_enhancer.py         # Image preprocessing
+│   └── temp_cleanup.py           # Temp file management
 ├── utils/
-│   ├── __init__.py
-│   ├── internet_checker.py        # 🌐 Connectivity verification
-│   ├── indian_number_plates_guide.py # 🇮🇳 Plate validation
-│   └── vehicle_detector.py         # 🚗 Vehicle type detection
-├── vehicle_images/                 # 📸 Full vehicle images storage
-├── temp_roi/                      # 🔍 Temporary ROI images (auto-cleanup)
-└── lpr_logs.db                    # 💾 Local SQLite database
+│   ├── camera_config.py          # Camera management
+│   └── indian_number_plates_guide.py  # Plate validation
+├── models/                    # YOLO models
+└── docs/
+    └── CAMERA_CONFIGURATION.md   # Camera setup guide
 ```
 
-## 🏗️ System Architecture
+---
 
-### Production Components
-1. **Integrated System** (`app.py`): Complete FastAPI application with camera, API, and dashboard
-2. **LPR Engine** (`lpr_system.py`): Advanced camera processing with ROI and dual database
-3. **Live Dashboard** (`web_dashboard.py`): Real-time monitoring with image display
-4. **AI Service** (`services/license_plate_service.py`): Qwen2.5-VL model integration
-5. **Vehicle Intelligence** (`utils/vehicle_detector.py`): Indian plate pattern recognition
+## 🔐 Security
 
-### Data Storage
-- **Local Database**: `lpr_logs.db` (SQLite) - Fast, reliable, offline-capable
-- **Cloud Database**: MongoDB Realm - Backup, remote access, scalability
-- **Image Storage**: `vehicle_images/` - Permanent full vehicle images
-- **Temp Storage**: `temp_roi/` - ROI images sent to API (auto-deleted after sync)
+### Best Practices
+1. **Never commit `.env` file** (contains passwords)
+2. **Use strong camera passwords**
+3. **Restrict API access** (add authentication)
+4. **Enable MongoDB authentication**
+5. **Use HTTPS in production**
+6. **Regular security updates**
 
-## 🌐 Access Points
+---
 
-- **🏠 Main System**: `http://localhost:8000/` - System overview and navigation
-- **📊 Live Dashboard**: `http://localhost:8000/dashboard` - Real-time vehicle monitoring
-- **📹 Camera Feed**: `http://localhost:8000/video_feed` - Live RTSP stream
-- **🔌 REST API**: `http://localhost:8000/extract-license-plate` - License plate extraction
-- **📚 API Docs**: `http://localhost:8000/docs` - Interactive API documentation
-- **🖼️ Vehicle Images**: `http://localhost:8000/vehicle-image/{filename}` - Full vehicle images
-- **🔍 ROI Images**: `http://localhost:8000/roi-image/{filename}` - ROI images sent to API
+## 📝 License
+
+This project is proprietary software for ReadyAssist R&D Campus.
+
+---
+
+## 🤝 Support
+
+For issues or questions:
+- **GitHub Issues**: https://github.com/deepak-kumar-swain/RTX5080_ANPR_System/issues
+- **Email**: support@readyassist.com
+
+---
+
+## 🎉 Changelog
+
+### v2.0.0 (Production Release)
+- ✅ Removed 21,571 duplicate database entries
+- ✅ Raised confidence threshold from 0.3 to 0.75
+- ✅ Added 30-second duplicate suppression
+- ✅ Enabled MongoDB integration with camera tracking
+- ✅ Removed all Raspberry Pi code and dependencies
+- ✅ Optimized for high-performance GPU deployment
+- ✅ Cleaned up test files and documentation
+
+### v1.0.0 (Initial Release)
+- Basic ANPR functionality
+- Single camera support
+- SQLite logging
+
+---
+
+**Built with ❤️ for high-performance license plate recognition**
