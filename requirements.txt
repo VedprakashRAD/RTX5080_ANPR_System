@@ -10,3 +10,6 @@ Pillow==10.1.0
 ultralytics==8.0.196
 torch>=1.8.0
 torchvision>=0.9.0
+pymongo>=4.6.0
+redis>=5.0.0
+lap>=0.4.0

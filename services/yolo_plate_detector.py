@@ -22,7 +22,7 @@ except ImportError:
     pass
 
 class YOLOPlateDetector:
-    def __init__(self, model_path: str = "yolov8_license_plate2 (2).pt", confidence_threshold: float = 0.5):
+    def __init__(self, model_path: str = "yolov8_license_plate2.pt", confidence_threshold: float = 0.5):
         """Initialize YOLOv8 license plate detector"""
         self.model_path = model_path
         self.confidence_threshold = confidence_threshold

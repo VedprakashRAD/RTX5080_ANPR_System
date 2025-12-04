@@ -83,7 +83,7 @@ class GlobalState:
         # Two-stage detection: Vehicle -> Plate
         # High-performance GPU settings with strict confidence thresholds
         self.vehicle_detector = VehicleDetector(confidence_threshold=0.6)
-        self.yolo_detector = YOLOPlateDetector(model_path="yolov8_license_plate2 (2).pt", confidence_threshold=0.75)
+        self.yolo_detector = YOLOPlateDetector(model_path="yolov8_license_plate2.pt", confidence_threshold=0.75)
         self.image_enhancer = ImageEnhancer()
         
         # Duplicate suppression: track recent plates with timestamps
@@ -628,7 +628,7 @@ def get_shared_yolo_detector():
     with yolo_lock:
         if yolo_detector is None:
             print("🔄 Initializing shared YOLO detector...")
-            yolo_detector = YOLOPlateDetector(model_path="yolov8_license_plate2 (2).pt", confidence_threshold=0.8)
+            yolo_detector = YOLOPlateDetector(model_path="yolov8_license_plate2.pt", confidence_threshold=0.8)
             print("✅ Shared YOLO detector ready")
     return yolo_detector
 
@@ -767,113 +767,14 @@ class LPRSystemResponse(BaseModel):
 app = FastAPI(title="Complete License Plate Recognition System", 
               description="Full LPR system with camera integration, vehicle detection, and web dashboard")
 
-# API endpoints
-from services.vision_service import run_vision_llm
-import tempfile
-import re
+# Include clean API router
+try:
+    from api.license_plate import router as license_plate_router
+    app.include_router(license_plate_router, prefix="/api", tags=["Clean ANPR API"])
+    print("✅ Clean API router loaded at /api/extract-license-plate")
+except Exception as e:
+    print(f"⚠️ Could not load API router: {e}")
 
-@app.post("/extract-license-plate", response_model=LicensePlateResponse)
-async def extract_license_plate(image: UploadFile = File(...)):
-    """
-    API endpoint to extract Indian license plate number from an uploaded image
-    """
-    try:
-        # Read image content
-        image_content = await image.read()
-        internet_available = check_internet_connection()
-        
-        # Check Ollama connection first
-        try:
-            import requests
-            ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-            response = requests.get(f"{ollama_host}/api/tags", timeout=3)
-            if response.status_code != 200:
-                return LicensePlateResponse(
-                    success=False,
-                    internet=internet_available,
-                    error="Ollama service not available. Start with: ollama serve"
-                )
-        except Exception as e:
-            return LicensePlateResponse(
-                success=False,
-                internet=internet_available,
-                error=f"Ollama connection failed: {str(e)}"
-            )
-        
-        # First run YOLOv8 detection on uploaded image
-        import numpy as np
-        from PIL import Image
-        import io
-        
-        # Convert bytes to image for YOLOv8
-        pil_image = Image.open(io.BytesIO(image_content))
-        cv_image = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
-        
-        # YOLOv8 detection using shared detector
-        yolo_detector = get_shared_yolo_detector()
-        plates = yolo_detector.detect_plates(cv_image)
-        
-        yolo_info = []
-        best_confidence = 0.0
-        
-        for x1, y1, x2, y2, conf in plates:
-            yolo_info.append({
-                "bbox": [int(x1), int(y1), int(x2), int(y2)],
-                "confidence": float(conf)
-            })
-            if conf > best_confidence:
-                best_confidence = conf
-        
-        # Save image to a temporary file for vision LLM
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as temp_img_file:
-            temp_img_file.write(image_content)
-            temp_img_path = temp_img_file.name
-
-        # Process image and extract license plate using vision LLM
-        result = run_vision_llm(temp_img_path)
-        
-        # Clean up the temporary file
-        os.remove(temp_img_path)
-
-        # Handle different result types
-        if isinstance(result, dict):
-            plate = result.get('plate', '')
-        elif isinstance(result, str):
-            plate = result
-        else:
-            plate = str(result) if result else ''
-        
-        # Check for error conditions
-        if plate in ['NOT_FOUND', 'ERROR_PROCESSING', 'PROCESSING_ERROR', '']:
-            return LicensePlateResponse(
-                success=False,
-                internet=internet_available,
-                error=f"No license plate detected in image"
-            )
-        
-        # Clean the registration number
-        import re
-        cleaned_plate = re.sub(r'[^A-Z0-9]', '', str(plate).upper())
-        
-        # Log API response
-        print(f"✅ API RESPONSE: success=True, plate={cleaned_plate}, yolo_conf={best_confidence:.3f}")
-        
-        # Return result with YOLOv8 info
-        return LicensePlateResponse(
-            success=True,
-            internet=internet_available,
-            registrationNo=cleaned_plate if cleaned_plate else "TEST123",
-            yolo_detections=yolo_info,
-            yolo_confidence=best_confidence if best_confidence > 0 else None
-        )
-        
-    except Exception as e:
-        print(f"❌ API Error: {str(e)}")
-        return LicensePlateResponse(
-            success=False,
-            internet=check_internet_connection(),
-            error=str(e)
-        )
 
 @app.get("/start-lpr", response_model=LPRSystemResponse)
 async def start_lpr_system():
