@@ -21,7 +21,6 @@ PLATE_ROI_Y = int(os.getenv("PLATE_ROI_Y", 600))
 PLATE_ROI_W = int(os.getenv("PLATE_ROI_W", 800))
 PLATE_ROI_H = int(os.getenv("PLATE_ROI_H", 300))
 SHARPNESS_THRESHOLD = int(os.getenv("SHARPNESS_THRESHOLD", 100))
-GATE_PIN = int(os.getenv("GATE_PIN", 17))
 
 # Plate ROI coordinates
 PLATE_ROI = (PLATE_ROI_X, PLATE_ROI_Y, PLATE_ROI_W, PLATE_ROI_H)
@@ -32,17 +31,6 @@ conn.execute('''CREATE TABLE IF NOT EXISTS logs
              (id INTEGER PRIMARY KEY, plate TEXT, timestamp TEXT, type TEXT, confidence REAL)''')
 conn.commit()
 conn.close()
-
-# Initialize GPIO (optional for Raspberry Pi)
-try:
-    import RPi.GPIO as GPIO
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setup(GATE_PIN, GPIO.OUT)
-    GPIO.output(GATE_PIN, GPIO.LOW)
-    GPIO_AVAILABLE = True
-except:
-    GPIO_AVAILABLE = False
-    print("GPIO not available (running on PC)")
 
 def detect_vehicle_type(plate):
     if not plate or len(plate) < 8:
@@ -55,13 +43,6 @@ def detect_vehicle_type(plate):
         return "AUTO/TAXI"
     else:
         return "CAR"
-
-def open_gate():
-    if GPIO_AVAILABLE:
-        GPIO.output(GATE_PIN, GPIO.HIGH)
-        time.sleep(3)
-        GPIO.output(GATE_PIN, GPIO.LOW)
-        print("Gate opened")
 
 class LPRSystem:
     def __init__(self):
@@ -182,9 +163,6 @@ class DummyVideoCapture:
                                    (plate, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), vehicle_type, confidence))
                         conn.commit()
                         conn.close()
-                        
-                        # Open gate
-                        open_gate()
                         
                         # Update tracking
                         self.last_plate = plate

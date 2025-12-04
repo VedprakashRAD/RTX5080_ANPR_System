@@ -81,9 +81,14 @@ class GlobalState:
     def initialize_detectors(self):
         print("🔄 Initializing detectors...")
         # Two-stage detection: Vehicle -> Plate
-        self.vehicle_detector = VehicleDetector(confidence_threshold=0.4)
-        self.yolo_detector = YOLOPlateDetector(model_path="yolov8_license_plate2 (2).pt", confidence_threshold=0.3)
+        # High-performance GPU settings with strict confidence thresholds
+        self.vehicle_detector = VehicleDetector(confidence_threshold=0.6)
+        self.yolo_detector = YOLOPlateDetector(model_path="yolov8_license_plate2 (2).pt", confidence_threshold=0.75)
         self.image_enhancer = ImageEnhancer()
+        
+        # Duplicate suppression: track recent plates with timestamps
+        self.recent_plates = {}  # {plate: last_seen_timestamp}
+        self.duplicate_cooldown = 30  # seconds
         # self.license_plate_service = LicensePlateService()
         self.license_plate_service = LlamaServerService() # Use Persistent Server Strategy
         self.mongodb_sync = MongoDBSync()
@@ -539,7 +544,50 @@ def async_api_processor():
                 result = response.json()
                 if result.get('success') and result.get('registrationNo'):
                     plate = result['registrationNo']
-                    print(f"✅ Vehicle {vehicle_data.get('plate_index', 0)+1}: {plate}")
+                    
+                    # DUPLICATE SUPPRESSION: Check if plate seen recently
+                    current_time = time.time()
+                    if plate in state.recent_plates:
+                        time_since_last = current_time - state.recent_plates[plate]
+                        if time_since_last < state.duplicate_cooldown:
+                            print(f"⏭️ Duplicate: {plate} (seen {time_since_last:.1f}s ago, cooldown: {state.duplicate_cooldown}s)")
+                            # Clean up duplicate image
+                            if os.path.exists(screenshot_path):
+                                os.remove(screenshot_path)
+                            continue
+                    
+                    # Update recent plates tracker
+                    state.recent_plates[plate] = current_time
+                    
+                    # Clean old entries (older than 60 seconds)
+                    state.recent_plates = {k: v for k, v in state.recent_plates.items() 
+                                          if current_time - v < 60}
+                    
+                    print(f"✅ NEW DETECTION: {plate} [Vehicle {vehicle_data.get('plate_index', 0)+1}]")
+                    
+                    # MONGODB WRITE: Save to persistent storage
+                    if state.mongodb_sync and state.mongodb_sync.is_enabled():
+                        try:
+                            from utils.camera_config import get_active_camera
+                            active_camera = get_active_camera()
+                            camera_name = active_camera.name if active_camera else "API_Upload"
+                            
+                            # Determine direction from camera name
+                            direction = "IN" if "IN" in camera_name else "OUT" if "OUT" in camera_name else "UNKNOWN"
+                            
+                            record = {
+                                'plate': plate,
+                                'camera_id': camera_name,
+                                'direction': direction,
+                                'timestamp': datetime.now(),
+                                'confidence': vehicle_data.get('yolo_confidence', 0.0),
+                                'vehicle_type': 'UNKNOWN',
+                                'image_path': screenshot_path
+                            }
+                            state.mongodb_sync.sync_record(record)
+                            print(f"💾 Saved to MongoDB: {plate} [{camera_name}] [{direction}]")
+                        except Exception as e:
+                            print(f"⚠️ MongoDB sync failed: {e}")
 
             # Cleanup - delete the image file after processing
             if os.path.exists(screenshot_path):
