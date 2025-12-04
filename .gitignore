@@ -57,3 +57,8 @@ logs/
 *.db
 *.sqlite
 *.sqlite3
+
+# Database admin tools
+adminer.php
+setup_mysql.sh
+*.sql
