@@ -3,12 +3,34 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
 import uvicorn
-import cv2
 import os
+
+# Suppress OpenCV camera enumeration warnings
+os.environ['OPENCV_LOG_LEVEL'] = 'ERROR'
+os.environ['OPENCV_VIDEOIO_DEBUG'] = '0'
+os.environ['OPENCV_CAMERA_API_PREFERENCE'] = 'NONE'
+
+import cv2
 import queue
 import threading
 import hashlib
 from dotenv import load_dotenv
+
+# Fix PyTorch 2.6+ weights_only issue for YOLO models
+import torch
+import ultralytics.nn.tasks
+
+# Monkey patch Ultralytics to use weights_only=False
+original_torch_safe_load = ultralytics.nn.tasks.torch_safe_load
+
+def patched_torch_safe_load(file, *args, **kwargs):
+    """Patched version that uses weights_only=False for trusted models"""
+    try:
+        return torch.load(file, map_location='cpu', weights_only=False), file
+    except Exception as e:
+        return original_torch_safe_load(file, *args, **kwargs)
+
+ultralytics.nn.tasks.torch_safe_load = patched_torch_safe_load
 
 # Load environment variables
 load_dotenv()
@@ -16,16 +38,24 @@ load_dotenv()
 # Import our modules
 from services.yolo_plate_detector import YOLOPlateDetector
 from services.license_plate_service import LicensePlateService
-from services.llama_server_service import LlamaServerService
+# from services.llama_server_service import LlamaServerService  # NOT USED - using Ollama instead
 from services.vehicle_detector import VehicleDetector
 from services.image_enhancer import ImageEnhancer
-from services.mongodb_sync import MongoDBSync
+# MongoDB removed - using MySQL only
 from services.temp_cleanup import TempFileCleanup
 from utils.indian_number_plates_guide import validate_license_plate
 
 from utils.internet_checker import check_internet_connection
 from lpr_system import LPRSystem
 from web_dashboard import get_dashboard_html, get_root_html
+
+# Import multi-camera processor for integrated startup
+try:
+    from multi_camera_processor import MultiCameraProcessor
+    MULTI_CAMERA_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ Multi-camera processor not available: {e}")
+    MULTI_CAMERA_AVAILABLE = False
 
 # Configuration from .env
 API_HOST = os.getenv("API_HOST", "0.0.0.0")
@@ -58,7 +88,7 @@ class GlobalState:
         self.license_plate_service = None
         self.vehicle_detector = None
         self.image_enhancer = None
-        self.mongodb_sync = None
+        # MongoDB removed - using MySQL only
         self.temp_cleanup = None
         self.last_processed_plates = {}
         self.plate_positions = {}
@@ -83,15 +113,19 @@ class GlobalState:
         # Two-stage detection: Vehicle -> Plate
         # High-performance GPU settings with strict confidence thresholds
         self.vehicle_detector = VehicleDetector(confidence_threshold=0.6)
-        self.yolo_detector = YOLOPlateDetector(model_path="yolov8_license_plate2.pt", confidence_threshold=0.75)
+        self.yolo_detector = YOLOPlateDetector(model_path="models/yolov8_license_plate2.pt", confidence_threshold=0.75)
         self.image_enhancer = ImageEnhancer()
         
         # Duplicate suppression: track recent plates with timestamps
         self.recent_plates = {}  # {plate: last_seen_timestamp}
-        self.duplicate_cooldown = 30  # seconds
-        # self.license_plate_service = LicensePlateService()
-        self.license_plate_service = LlamaServerService() # Use Persistent Server Strategy
-        self.mongodb_sync = MongoDBSync()
+        self.duplicate_cooldown = 180  # 3 minutes
+        
+        # Use Ollama (qwen2.5vl:3b) for license plate extraction
+        # LlamaServerService is NOT used - we use Ollama instead
+        # self.license_plate_service = LlamaServerService()  # DISABLED
+        self.license_plate_service = LicensePlateService()  # Uses Ollama
+        
+        # MongoDB removed - using MySQL only
         self.temp_cleanup = TempFileCleanup(temp_dir="temp_screenshots", max_age_hours=1)
         print("✅ Detectors initialized (CPU-optimized)")
 
@@ -173,18 +207,8 @@ def sync_to_cloud_and_cleanup(plate, vehicle_type, full_image_path, roi_image_pa
     STAGE 15: Cleanup Temp Files
     """
     try:
-        # STAGE 14: Sync to MongoDB if enabled
-        if state.mongodb_sync and state.mongodb_sync.is_enabled():
-            record = {
-                "plate": plate,
-                "vehicle_type": vehicle_type,
-                "timestamp": datetime.now().isoformat(),
-                "full_image_path": full_image_path,
-                "roi_image_path": roi_image_path,
-                "api_response": api_response,
-                "synced": True
-            }
-            state.mongodb_sync.sync_record(record)
+        # MongoDB removed - using MySQL + External API instead
+        pass
         
         # STAGE 15: Cleanup temp ROI image after processing
         if state.temp_cleanup and os.path.exists(roi_image_path):
@@ -565,29 +589,8 @@ def async_api_processor():
                     
                     print(f"✅ NEW DETECTION: {plate} [Vehicle {vehicle_data.get('plate_index', 0)+1}]")
                     
-                    # MONGODB WRITE: Save to persistent storage
-                    if state.mongodb_sync and state.mongodb_sync.is_enabled():
-                        try:
-                            from utils.camera_config import get_active_camera
-                            active_camera = get_active_camera()
-                            camera_name = active_camera.name if active_camera else "API_Upload"
-                            
-                            # Determine direction from camera name
-                            direction = "IN" if "IN" in camera_name else "OUT" if "OUT" in camera_name else "UNKNOWN"
-                            
-                            record = {
-                                'plate': plate,
-                                'camera_id': camera_name,
-                                'direction': direction,
-                                'timestamp': datetime.now(),
-                                'confidence': vehicle_data.get('yolo_confidence', 0.0),
-                                'vehicle_type': 'UNKNOWN',
-                                'image_path': screenshot_path
-                            }
-                            state.mongodb_sync.sync_record(record)
-                            print(f"💾 Saved to MongoDB: {plate} [{camera_name}] [{direction}]")
-                        except Exception as e:
-                            print(f"⚠️ MongoDB sync failed: {e}")
+                    # MongoDB removed - using MySQL + External API instead
+                    pass
 
             # Cleanup - delete the image file after processing
             if os.path.exists(screenshot_path):
@@ -618,6 +621,10 @@ camera_lock = threading.Lock()
 last_frame = None
 last_frame_time = 0
 
+# Global multi-camera processor instance
+multi_camera_processor = None
+multi_camera_thread = None
+
 # Global YOLO detector to prevent repeated model loading
 yolo_detector = None
 yolo_lock = threading.Lock()
@@ -628,7 +635,7 @@ def get_shared_yolo_detector():
     with yolo_lock:
         if yolo_detector is None:
             print("🔄 Initializing shared YOLO detector...")
-            yolo_detector = YOLOPlateDetector(model_path="yolov8_license_plate2.pt", confidence_threshold=0.8)
+            yolo_detector = YOLOPlateDetector(model_path="models/yolov8_license_plate2.pt", confidence_threshold=0.8)
             print("✅ Shared YOLO detector ready")
     return yolo_detector
 
@@ -662,7 +669,7 @@ def get_shared_camera():
             if camera_instance:
                 camera_instance.release()
             
-            # Try RTSP first, fallback to webcam
+            # Try RTSP first, no fallback to webcam
             if RTSP_URL:
                 print(f"🔗 Trying RTSP: {RTSP_URL}")
                 camera_instance = cv2.VideoCapture(RTSP_URL)
@@ -670,23 +677,16 @@ def get_shared_camera():
                     print(f"❌ RTSP connection failed: {RTSP_URL}")
                     camera_instance = None
             
-            # Try webcam if RTSP failed or not set
+            # No webcam fallback - only use RTSP cameras
+            # Fallback to dummy camera if RTSP fails
             if camera_instance is None:
-                print("📹 Trying webcam (index 0)")
-                camera_instance = cv2.VideoCapture(0)
-                if not camera_instance.isOpened():
-                    print("❌ Webcam connection failed")
-                    camera_instance = None
-
-            # Fallback to dummy camera if everything fails
-            if camera_instance is None:
-                print("⚠️ Using Dummy Camera (No video source available)")
+                print("⚠️ Using Dummy Camera (No RTSP camera available)")
                 camera_instance = DummyVideoCapture()
             
             if camera_instance.isOpened():
                 camera_instance.set(cv2.CAP_PROP_BUFFERSIZE, 1)
                 camera_instance.set(cv2.CAP_PROP_FPS, 5)
-                print(f"✅ Camera connected: {'Dummy' if isinstance(camera_instance, DummyVideoCapture) else ('RTSP' if RTSP_URL else 'Webcam')}")
+                print(f"✅ Camera connected: {'Dummy' if isinstance(camera_instance, DummyVideoCapture) else 'RTSP'}")
             else:
                 print(f"❌ Camera connection failed completely")
         return camera_instance
@@ -818,13 +818,25 @@ async def get_roi_image(filename: str):
 
 @app.get("/video_feed")
 async def video_feed():
-    """MJPEG stream from configured RTSP URL or webcam."""
+    """MJPEG stream from configured RTSP URL."""
     rtsp_url = RTSP_URL or (RTSP_URLS[0] if RTSP_URLS else None)
     
-    # If no RTSP URL is configured, try to use webcam (0)
+    # If no RTSP URL is configured, use dummy stream
     if not rtsp_url:
-        print("⚠️ No RTSP URL configured, trying webcam 0")
-        rtsp_url = 0
+        print("⚠️ No RTSP URL configured, using dummy stream")
+        # Return a dummy stream instead of trying webcam
+        def dummy_stream():
+            while True:
+                # Create a black image with text
+                frame = np.zeros((240, 320, 3), dtype=np.uint8)
+                cv2.putText(frame, "No RTSP Camera", (10, 120), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+                ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 60])
+                frame_bytes = buffer.tobytes()
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+                time.sleep(0.1)
+        return StreamingResponse(dummy_stream(), media_type="multipart/x-mixed-replace; boundary=frame")
         
     return StreamingResponse(mjpeg_generator(rtsp_url), media_type="multipart/x-mixed-replace; boundary=frame")
 
@@ -851,14 +863,55 @@ def start_headless_service():
         # Use the same Python executable and ensure virtual environment
         python_exec = sys.executable
         env = os.environ.copy()
+        # Disable camera enumeration in the subprocess as well
+        env['OPENCV_LOG_LEVEL'] = 'ERROR'
+        env['OPENCV_VIDEOIO_DEBUG'] = '0'
+        env['OPENCV_CAMERA_API_PREFERENCE'] = 'NONE'
         headless_process = subprocess.Popen([python_exec, "lpr_headless.py"], env=env)
         print(f"🚀 Headless LPR service started (PID: {headless_process.pid})")
     except Exception as e:
         print(f"❌ Failed to start headless service: {e}")
 
+def start_multi_camera_processor():
+    """Start multi-camera processor in background thread"""
+    global multi_camera_processor, multi_camera_thread
+    
+    if not MULTI_CAMERA_AVAILABLE:
+        print("⚠️ Multi-camera processor not available")
+        return
+    
+    try:
+        print("\n🎥 Starting Multi-Camera Processor...")
+        multi_camera_processor = MultiCameraProcessor()
+        
+        # Run in background thread
+        multi_camera_thread = threading.Thread(
+            target=multi_camera_processor.run,
+            daemon=True,
+            name="MultiCameraProcessor"
+        )
+        multi_camera_thread.start()
+        print("✅ Multi-camera processor started")
+        print("   - Gate verification enabled")
+        print("   - Dual-camera matching active")
+        
+    except Exception as e:
+        print(f"❌ Failed to start multi-camera processor: {e}")
+        import traceback
+        traceback.print_exc()
+
 def stop_headless_service():
     """Stop services on exit"""
     print("👋 Stopping services...")
+    
+    # Stop multi-camera processor
+    global multi_camera_processor
+    if multi_camera_processor:
+        try:
+            multi_camera_processor.stop_all()
+            print("✅ Multi-camera processor stopped")
+        except Exception as e:
+            print(f"⚠️ Error stopping multi-camera processor: {e}")
     
     # Stop LlamaServer if running
     if state.license_plate_service and hasattr(state.license_plate_service, 'shutdown'):
@@ -877,18 +930,30 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
     atexit.register(stop_headless_service)
     
-    print("🚀 Starting Complete LPR System...")
+    print("="*70)
+    print("🚀 Starting Complete ANPR System with Gate Verification")
+    print("="*70)
     print(f"📡 API Server: http://localhost:{API_PORT}")
     print(f"📹 Camera Feed: http://localhost:{API_PORT}/video_feed")
-    print(f"🔍 Motion Detection: RTSP-based processing")
     print(f"📚 API Docs: http://localhost:{API_PORT}/docs")
+    print(f"🎥 Multi-Camera: Enabled (with dual-camera gate verification)")
+    print(f"🔐 Gate Verification: Active")
+    print("="*70)
     
-    # Start headless service after a delay
+    # Start multi-camera processor after API server starts
     def delayed_start():
         time.sleep(3)  # Wait for API server to start
-        start_headless_service()
+        print("\n⏳ Waiting for API server to be ready...")
+        time.sleep(2)
+        
+        # Start multi-camera processor with gate verification
+        start_multi_camera_processor()
+        
+        # Optional: Start headless service if needed
+        # start_headless_service()
     
     threading.Thread(target=delayed_start, daemon=True).start()
     
-    # Start API server
+    # Start API server (blocking call)
+    print("\n🌐 Starting API server...\n")
     uvicorn.run(app, host=API_HOST, port=API_PORT)

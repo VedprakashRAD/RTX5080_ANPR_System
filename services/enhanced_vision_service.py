@@ -23,16 +23,17 @@ class EnhancedVisionService:
         self.ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
         self.model = os.getenv("OLLAMA_MODEL", "qwen2.5vl:3b")
         
-        # Optimized prompt without examples to force actual image reading
-        self.prompt_template = """Analyze the vehicle image and extract:
-1. License plate number (Indian format)
-2. Vehicle type (CAR/BIKE/SCOOTER/BUS/TRUCK)
-3. Vehicle color
+        # Strict prompt to force JSON output only
+        self.prompt_template = """You are a vehicle data extraction system. Analyze the image and return ONLY a JSON object with this exact format:
 
-Return JSON format:
-{"plate":"<actual_plate_number>","type":"<vehicle_type>","color":"<color>"}
+{"plate":"LICENSE_PLATE","type":"VEHICLE_TYPE","color":"COLOR"}
 
-If no plate visible: {"plate":null,"type":"<vehicle_type>","color":"<color>"}"""
+Rules:
+- plate: Indian license plate number (e.g., "KL 34E 952") or null if not visible
+- type: Must be one of: CAR, BIKE, SCOOTER, BUS, TRUCK
+- color: Vehicle color (e.g., "black", "white", "red")
+
+IMPORTANT: Return ONLY the JSON object, no explanations or additional text."""
     
     def _resize_for_speed(self, image_path: str) -> str:
         """Resize image to 560x560 for maximum speed (50% speed gain)"""
@@ -118,11 +119,15 @@ If no plate visible: {"plate":null,"type":"<vehicle_type>","color":"<color>"}"""
             result = response.json()
             raw_text = result.get('response', '')
             
+            # Debug: Print raw response to see what Ollama is returning
+            print(f"🔍 Ollama raw response: {raw_text[:200]}...")  # First 200 chars
+            
             # Parse JSON response
             parsed_data = self._parse_response(raw_text)
             
             if not parsed_data:
-                return self._error_response("Failed to parse response")
+                print(f"❌ Failed to parse Ollama response: {raw_text}")
+                return self._error_response(f"Failed to parse response: {raw_text[:100]}")
             
             # Calculate confidence
             confidence = self._calculate_confidence(parsed_data)

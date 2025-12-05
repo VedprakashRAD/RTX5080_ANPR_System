@@ -26,7 +26,6 @@ class DummyVideoCapture:
         pass
 
 def generate_frames():
-    # Handle empty RTSP_URL by falling back to webcam 0
     source = RTSP_URL
     cap = None
     
@@ -35,11 +34,7 @@ def generate_frames():
         if not cap.isOpened():
             cap = None
             
-    if cap is None:
-        cap = cv2.VideoCapture(0)
-        if not cap.isOpened():
-            cap = None
-            
+    # No webcam fallback - only use RTSP or dummy camera
     if cap is None:
         cap = DummyVideoCapture()
     while True:

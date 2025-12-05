@@ -70,25 +70,17 @@ class DummyVideoCapture:
         pass
 
     def initialize_camera(self):
-        """Initialize the camera connection"""
         try:
-            # Handle empty RTSP_URL by falling back to webcam 0
-            source = RTSP_URL
-            self.cap = None
+            source = RTSP_URL or os.getenv("RTSP_URL")
             
             if source:
                 self.cap = cv2.VideoCapture(source)
                 if not self.cap.isOpened():
                     self.cap = None
             
+            # No webcam fallback - only use RTSP or dummy camera
             if self.cap is None:
-                print("⚠️ No RTSP URL configured or failed, trying webcam 0")
-                self.cap = cv2.VideoCapture(0)
-                if not self.cap.isOpened():
-                    self.cap = None
-            
-            if self.cap is None:
-                print("⚠️ Using Dummy Camera (No video source available)")
+                print("⚠️ Using Dummy Camera (No RTSP camera available)")
                 self.cap = DummyVideoCapture()
 
             if not self.cap.isOpened():

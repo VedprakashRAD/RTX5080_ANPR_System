@@ -9,6 +9,11 @@ import numpy as np
 import hashlib
 from dotenv import load_dotenv
 
+# Suppress OpenCV camera enumeration warnings
+os.environ['OPENCV_LOG_LEVEL'] = 'ERROR'
+os.environ['OPENCV_VIDEOIO_DEBUG'] = '0'
+os.environ['OPENCV_CAMERA_API_PREFERENCE'] = 'NONE'
+
 load_dotenv()
 
 # CONFIG
@@ -50,7 +55,7 @@ class DummyVideoCapture:
         pass
 
 def capture_frame():
-    # Handle empty RTSP_URL by falling back to webcam 0
+    # Handle empty RTSP_URL by falling back to dummy camera only
     source = RTSP_URL
     cap = None
     
@@ -59,12 +64,7 @@ def capture_frame():
         if not cap.isOpened():
             cap = None
             
-    if cap is None:
-        # Try webcam
-        cap = cv2.VideoCapture(0)
-        if not cap.isOpened():
-            cap = None
-            
+    # No webcam fallback - only use RTSP or dummy camera
     if cap is None:
         # Fallback to dummy
         cap = DummyVideoCapture()
@@ -106,8 +106,6 @@ def send_to_api(image_bytes):
         except Exception as local_e:
             log(f"Local API exception: {local_e}")
     return {}
-
-
 
 def detect_motion(frame1, frame2):
     if frame1 is None or frame2 is None:

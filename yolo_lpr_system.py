@@ -15,27 +15,26 @@ from utils.internet_checker import check_internet_connection
 import json
 
 class YOLOLPRSystem:
-    def __init__(self):
+    """YOLOv8-based License Plate Recognition System"""
+    
+    def __init__(self, rtsp_url: str = None):
+        self.rtsp_url = rtsp_url or os.getenv("RTSP_URL")
+        self.cap = None
+        self.last_detection_time = 0
+        self.detection_cooldown = 180  # 3 minutes between detections
+        self.image_path = "saved_images"
+        self.roi_path = "roi_images"
+        
+        # Create directories
+        os.makedirs(self.image_path, exist_ok=True)
+        os.makedirs(self.roi_path, exist_ok=True)
+
         # Initialize components
         self.yolo_detector = YOLOPlateDetector()
         self.ocr_service = LicensePlateService()
         
-        # Camera setup
-        self.rtsp_url = os.getenv('RTSP_URL', 'rtsp://admin:Rasdf_1212@10.1.2.201:554/stream1')
-        self.cap = None
-        
-        # Storage paths
-        self.image_path = "./detected_vehicles/"
-        self.roi_path = "./temp_roi/"
-        os.makedirs(self.image_path, exist_ok=True)
-        os.makedirs(self.roi_path, exist_ok=True)
-        
         # Database
         self.init_database()
-        
-        # Processing settings
-        self.last_detection_time = 0
-        self.detection_cooldown = 3  # seconds between detections
         
     def init_database(self):
         """Initialize SQLite database"""
@@ -75,26 +74,17 @@ class DummyVideoCapture:
         pass
 
     def connect_camera(self):
-        """Connect to RTSP camera"""
+        """Connect to camera"""
         try:
-            # Handle empty RTSP_URL by falling back to webcam 0
-            source = self.rtsp_url
-            self.cap = None
-            
-            if source and "admin:Rasdf" not in source:
-                self.cap = cv2.VideoCapture(source)
+            # Try RTSP first
+            if self.rtsp_url:
+                self.cap = cv2.VideoCapture(self.rtsp_url)
                 if not self.cap.isOpened():
                     self.cap = None
             
+            # No webcam fallback - only use RTSP or dummy camera
             if self.cap is None:
-                if not os.getenv('RTSP_URL'):
-                    print("⚠️ No RTSP URL configured, trying webcam 0")
-                    self.cap = cv2.VideoCapture(0)
-                    if not self.cap.isOpened():
-                        self.cap = None
-            
-            if self.cap is None:
-                print("⚠️ Using Dummy Camera (No video source available)")
+                print("⚠️ Using Dummy Camera (No RTSP camera available)")
                 self.cap = DummyVideoCapture()
 
             if self.cap.isOpened():

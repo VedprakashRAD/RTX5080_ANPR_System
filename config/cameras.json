@@ -1,0 +1,67 @@
+{
+  "cameras": [
+    {
+      "id": "${CAMERA_GATE1_ENTRY_ID}",
+      "name": "${CAMERA_GATE1_ENTRY_NAME}",
+      "rtsp_url": "rtsp://${CAMERA_USERNAME}:${CAMERA_PASSWORD}@${CAMERA_GATE1_ENTRY_IP}:${CAMERA_GATE1_ENTRY_PORT}/${CAMERA_GATE1_ENTRY_STREAM}",
+      "location": "${CAMERA_GATE1_ENTRY_LOCATION}",
+      "direction": "${CAMERA_GATE1_ENTRY_DIRECTION}",
+      "gate_name": "${CAMERA_GATE1_ENTRY_GATE_NAME}",
+      "gate": "GATE1",
+      "enabled": true
+    },
+    {
+      "id": "${CAMERA_GATE1_EXIT_ID}",
+      "name": "${CAMERA_GATE1_EXIT_NAME}",
+      "rtsp_url": "rtsp://${CAMERA_USERNAME}:${CAMERA_PASSWORD}@${CAMERA_GATE1_EXIT_IP}:${CAMERA_GATE1_EXIT_PORT}/${CAMERA_GATE1_EXIT_STREAM}",
+      "location": "${CAMERA_GATE1_EXIT_LOCATION}",
+      "direction": "${CAMERA_GATE1_EXIT_DIRECTION}",
+      "gate_name": "${CAMERA_GATE1_EXIT_GATE_NAME}",
+      "gate": "GATE1",
+      "enabled": true
+    },
+    {
+      "id": "${CAMERA_GATE2_ENTRY_ID}",
+      "name": "${CAMERA_GATE2_ENTRY_NAME}",
+      "rtsp_url": "rtsp://${CAMERA_USERNAME}:${CAMERA_PASSWORD}@${CAMERA_GATE2_ENTRY_IP}:${CAMERA_GATE2_ENTRY_PORT}/${CAMERA_GATE2_ENTRY_STREAM}",
+      "location": "${CAMERA_GATE2_ENTRY_LOCATION}",
+      "direction": "${CAMERA_GATE2_ENTRY_DIRECTION}",
+      "gate_name": "${CAMERA_GATE2_ENTRY_GATE_NAME}",
+      "gate": "GATE2",
+      "enabled": true
+    },
+    {
+      "id": "${CAMERA_GATE2_EXIT_ID}",
+      "name": "${CAMERA_GATE2_EXIT_NAME}",
+      "rtsp_url": "rtsp://${CAMERA_USERNAME}:${CAMERA_PASSWORD}@${CAMERA_GATE2_EXIT_IP}:${CAMERA_GATE2_EXIT_PORT}/${CAMERA_GATE2_EXIT_STREAM}",
+      "location": "${CAMERA_GATE2_EXIT_LOCATION}",
+      "direction": "${CAMERA_GATE2_EXIT_DIRECTION}",
+      "gate_name": "${CAMERA_GATE2_EXIT_GATE_NAME}",
+      "gate": "GATE2",
+      "enabled": true
+    }
+  ],
+  "processing": {
+    "batch_size": 4,
+    "target_fps": 1,
+    "motion_threshold": 5000,
+    "detection_cooldown": 180,
+    "max_queue_size": 10
+  },
+  "gate_pairs": {
+    "GATE1": {
+      "entry_camera_id": "${CAMERA_GATE1_ENTRY_ID}",
+      "exit_camera_id": "${CAMERA_GATE1_EXIT_ID}",
+      "verification_window_seconds": 5,
+      "min_match_score": 60,
+      "require_verification": true
+    },
+    "GATE2": {
+      "entry_camera_id": "${CAMERA_GATE2_ENTRY_ID}",
+      "exit_camera_id": "${CAMERA_GATE2_EXIT_ID}",
+      "verification_window_seconds": 5,
+      "min_match_score": 60,
+      "require_verification": true
+    }
+  }
+}
